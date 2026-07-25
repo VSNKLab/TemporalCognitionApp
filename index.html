@@ -35,31 +35,81 @@
       <canvas id="unity-canvas" width=960 height=1200 tabindex="-1"></canvas>
     </div>
     <script>
-      // Prevent scrolling
+      // Prevent page scroll; in-app ScrollRect handles vertical overflow.
       document.body.addEventListener('touchmove', function(e) {
         e.preventDefault();
       }, { passive: false });
 
-      // Set viewport height variable
-      function setViewportHeight() {
-        let vh = window.innerHeight * 0.01;
-        document.documentElement.style.setProperty('--vh', `${vh}px`);
-        
-        // Force layout recalculation
-        document.body.style.height = `${window.innerHeight}px`;
-      }
-
-      // Handle resize and orientation changes
-      window.addEventListener('resize', setViewportHeight);
-      window.addEventListener('orientationchange', function() {
-        setTimeout(setViewportHeight, 100);
-      });
-      
-      // Initial setup
-      setViewportHeight();
-
       var container = document.querySelector("#unity-container");
       var canvas = document.querySelector("#unity-canvas");
+      var unityInstance = null;
+
+      function updateMobileClass() {
+        var isMobile = getViewportSize().width < 768;
+        container.className = isMobile ? "unity-mobile" : "";
+        canvas.className = isMobile ? "unity-mobile" : "";
+      }
+
+      updateMobileClass();
+
+      function getViewportSize() {
+        var viewport = window.visualViewport;
+        return {
+          width: Math.round(viewport ? viewport.width : window.innerWidth),
+          height: Math.round(viewport ? viewport.height : window.innerHeight)
+        };
+      }
+
+      // iOS Safari: use --vh so the container height ignores the address bar.
+      function setViewportHeight() {
+        var size = getViewportSize();
+        var vh = size.height * 0.01;
+        document.documentElement.style.setProperty('--vh', vh + 'px');
+        document.body.style.height = size.height + 'px';
+      }
+
+      function getDeviceCategory(viewportWidth) {
+        if (viewportWidth < 768)
+          return 'Phone';
+        if (viewportWidth < 1200)
+          return 'Tablet';
+        return 'Desktop';
+      }
+
+      function notifyUnityViewport() {
+        setViewportHeight();
+        updateMobileClass();
+
+        var size = getViewportSize();
+        canvas.style.width = size.width + 'px';
+        canvas.style.height = size.height + 'px';
+
+        if (unityInstance) {
+          var layout = {
+            width: size.width,
+            height: size.height,
+            category: getDeviceCategory(size.width)
+          };
+          unityInstance.SendMessage('AdaptiveUISystem', 'SetViewportLayout', JSON.stringify(layout));
+          unityInstance.SendMessage('ResizeCanvas', 'SetViewportSize', JSON.stringify(size));
+        }
+      }
+
+      function resizeUnityCanvas() {
+        notifyUnityViewport();
+      }
+
+      window.addEventListener('resize', resizeUnityCanvas);
+      window.addEventListener('orientationchange', function() {
+        setTimeout(resizeUnityCanvas, 300);
+      });
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', resizeUnityCanvas);
+        window.visualViewport.addEventListener('scroll', resizeUnityCanvas);
+      }
+
+      setViewportHeight();
 
       var buildUrl = "Build";
       var loaderUrl = buildUrl + "/App.loader.js";
@@ -73,40 +123,15 @@
         productVersion: "1.1",
       };
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-        document.getElementsByTagName('head')[0].appendChild(meta);
-        container.className = "unity-mobile";
-        canvas.className = "unity-mobile";
-
-      }
-
 
       var script = document.createElement("script");
       script.src = loaderUrl;
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
           // Progress callback removed since we don't show loading bar
-        }).then((unityInstance) => {
-          // Set up resize handler to communicate viewport size to Unity
-          function resizeUnityCanvas() {
-            var dpr = window.devicePixelRatio || 1;
-            var width = window.innerWidth * dpr;
-            var height = window.innerHeight * dpr;
-            canvas.style.width = window.innerWidth + "px";
-            canvas.style.height = window.innerHeight + "px";
-            unityInstance.SendMessage('ResizeCanvas', 'SetViewportSize', JSON.stringify({
-              width: Math.round(width),
-              height: Math.round(height)
-            }));
-          }
-
-          // Initial resize
+        }).then((instance) => {
+          unityInstance = instance;
           resizeUnityCanvas();
-          // Add resize listener
-          window.addEventListener("resize", resizeUnityCanvas);
         }).catch((message) => {
           alert(message);
         });
