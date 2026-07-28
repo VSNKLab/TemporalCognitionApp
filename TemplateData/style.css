@@ -9,7 +9,8 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #CCCCCC; /* matches PlayerSettings splash screen (0.8, 0.8, 0.8) */
+    /* Splash-phase only; switched to scheme DarkGrey once Unity is ready. */
+    background-color: #CCCCCC;
 }
 
 #unity-container {
@@ -18,14 +19,20 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    width: 100%;
+    width: 100vw;
+    width: 100dvw;
+    height: 100vh;
+    height: 100dvh;
     height: calc(var(--vh, 1vh) * 100);
     overflow: hidden;
-    background-color: #CCCCCC;
+    background-color: #CCCCCC; /* splash; overridden after load */
 }
 
 #unity-canvas {
     display: block;
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    height: 100% !important;
 }
