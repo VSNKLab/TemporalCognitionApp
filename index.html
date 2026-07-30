@@ -43,9 +43,8 @@
       var container = document.querySelector("#unity-container");
       var canvas = document.querySelector("#unity-canvas");
       var unityInstance = null;
-      // Matches DefaultColorScheme.darkGrey until ColorSchemeHandler syncs the live value.
-      var GAME_BACKGROUND = "#2C2C2C";
 
+      // Called from Unity ColorSchemeHandler with the active scheme's Dark Grey.
       function setPageBackgroundColor(color) {
         document.documentElement.style.backgroundColor = color;
         document.body.style.backgroundColor = color;
@@ -55,72 +54,57 @@
       window.setPageBackgroundColor = setPageBackgroundColor;
 
       function updateMobileClass() {
-        var size = getViewportSize();
-        var isMobile = Math.min(size.width, size.height) < 500;
+        var isMobile = getViewportSize().width < 768;
         container.className = isMobile ? "unity-mobile" : "";
         canvas.className = isMobile ? "unity-mobile" : "";
       }
 
       updateMobileClass();
 
-      // iOS Safari reports inconsistent sizes during/after orientation changes.
-      // Take the max across APIs so the canvas never undersizes and pillarboxes.
       function getViewportSize() {
-        var vv = window.visualViewport;
-        var width = Math.max(
-          window.innerWidth || 0,
-          document.documentElement.clientWidth || 0,
-          vv ? vv.width : 0
-        );
-        var height = Math.max(
-          window.innerHeight || 0,
-          document.documentElement.clientHeight || 0,
-          vv ? vv.height : 0
-        );
+        var viewport = window.visualViewport;
         return {
-          width: Math.max(1, Math.round(width)),
-          height: Math.max(1, Math.round(height))
+          width: Math.round(viewport ? viewport.width : window.innerWidth),
+          height: Math.round(viewport ? viewport.height : window.innerHeight)
         };
       }
 
-      // iOS Safari: --vh tracks the visible height (address bar / landscape chrome).
-      function applyViewportCss(size) {
-        document.documentElement.style.setProperty('--vh', (size.height * 0.01) + 'px');
-        document.body.style.width = size.width + 'px';
+      // iOS Safari: use --vh so the container height ignores the address bar.
+      function setViewportHeight() {
+        var size = getViewportSize();
+        var vh = size.height * 0.01;
+        document.documentElement.style.setProperty('--vh', vh + 'px');
         document.body.style.height = size.height + 'px';
-        container.style.width = size.width + 'px';
-        container.style.height = size.height + 'px';
       }
 
-      function getDeviceCategory(viewportWidth, viewportHeight) {
-        // Use the short side so landscape phones stay Phone (width alone would
-        // cross the 768 tablet breakpoint and change scale unexpectedly).
-        var shortSide = Math.min(viewportWidth, viewportHeight);
-        if (shortSide < 500)
+      function getDeviceCategory(viewportWidth) {
+        if (viewportWidth < 768)
           return 'Phone';
         if (viewportWidth < 1200)
           return 'Tablet';
         return 'Desktop';
       }
 
-      var lastNotified = { width: 0, height: 0 };
-
       function notifyUnityViewport() {
-        var size = getViewportSize();
-        applyViewportCss(size);
+        setViewportHeight();
         updateMobileClass();
 
-        // Canvas is CSS 100% of container; only notify Unity when size changes.
-        if (size.width === lastNotified.width && size.height === lastNotified.height)
-          return;
+        // ee4d165 started sizing the canvas to visualViewport px, which on iOS
+        // landscape is often narrower than the page and pillarboxes the game.
+        // Restore pre-ee4d165 behavior: CSS 100% fill of the container.
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
 
-        lastNotified = size;
+        var size = {
+          width: Math.round(container.clientWidth || window.innerWidth),
+          height: Math.round(container.clientHeight || window.innerHeight)
+        };
 
         if (unityInstance) {
           var layout = {
             width: size.width,
             height: size.height,
-            category: getDeviceCategory(size.width, size.height)
+            category: getDeviceCategory(size.width)
           };
           unityInstance.SendMessage('AdaptiveUISystem', 'SetViewportLayout', JSON.stringify(layout));
           unityInstance.SendMessage('ResizeCanvas', 'SetViewportSize', JSON.stringify(size));
@@ -131,26 +115,17 @@
         notifyUnityViewport();
       }
 
-      // After rotate, Safari often fires events before dimensions settle.
-      function resizeAfterOrientation() {
-        var delays = [0, 50, 100, 200, 350, 500, 800];
-        for (var i = 0; i < delays.length; i++)
-          setTimeout(resizeUnityCanvas, delays[i]);
-      }
-
       window.addEventListener('resize', resizeUnityCanvas);
-      window.addEventListener('orientationchange', resizeAfterOrientation);
+      window.addEventListener('orientationchange', function() {
+        setTimeout(resizeUnityCanvas, 300);
+      });
 
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', resizeUnityCanvas);
         window.visualViewport.addEventListener('scroll', resizeUnityCanvas);
       }
 
-      if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
-        window.screen.orientation.addEventListener('change', resizeAfterOrientation);
-      }
-
-      resizeUnityCanvas();
+      setViewportHeight();
 
       var buildUrl = "Build";
       var loaderUrl = buildUrl + "/App.loader.js";
@@ -162,8 +137,6 @@
         companyName: "VSNKLab",
         productName: "TemporalCognition",
         productVersion: "1.1",
-        matchWebGLToCanvasSize: true,
-        devicePixelRatio: window.devicePixelRatio || 1,
       };
 
 
@@ -174,11 +147,7 @@
           // Progress callback removed since we don't show loading bar
         }).then((instance) => {
           unityInstance = instance;
-          lastNotified = { width: 0, height: 0 };
-          // Leave splash grey behind as soon as the runtime is up; ColorSchemeHandler
-          // will overwrite this with the active scheme's DarkGrey shortly after.
-          setPageBackgroundColor(GAME_BACKGROUND);
-          resizeAfterOrientation();
+          resizeUnityCanvas();
         }).catch((message) => {
           alert(message);
         });
