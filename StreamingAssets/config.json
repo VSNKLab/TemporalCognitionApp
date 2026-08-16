@@ -5,5 +5,18 @@
     "practiceTrialCount": 3,
     "repetitionCount1": 3,
     "repetitionCount2": 3,
-    "repetitionCount3": 3
+    "repetitionCount3": 3,
+    "game1MinDuration": 2.0,
+    "game1MaxDuration": 5.0,
+    "game2MinDuration": 2.0,
+    "game2MaxDuration": 5.0,
+    "game3BeatCount": 10,
+    "game3ReproductionWindowSeconds": 40.0,
+    "game3MinTempo": 0.4,
+    "game3MaxTempo": 0.9,
+    "attentionChecksEnabled": true,
+    "attentionTrialsBetweenNumbersMin": 2,
+    "attentionTrialsBetweenNumbersMax": 4,
+    "attentionTrialsBetweenRecallsMin": 5,
+    "attentionTrialsBetweenRecallsMax": 8
 }
