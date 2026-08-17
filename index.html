@@ -107,7 +107,6 @@
             category: getDeviceCategory(size.width)
           };
           unityInstance.SendMessage('AdaptiveUISystem', 'SetViewportLayout', JSON.stringify(layout));
-          unityInstance.SendMessage('ResizeCanvas', 'SetViewportSize', JSON.stringify(size));
         }
       }
 
