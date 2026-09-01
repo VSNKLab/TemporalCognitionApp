@@ -15,8 +15,7 @@
     "game3MinTempo": 0.4,
     "game3MaxTempo": 0.9,
     "attentionChecksEnabled": true,
+    "attentionRecallsPerGame": 2,
     "attentionTrialsBetweenNumbersMin": 2,
-    "attentionTrialsBetweenNumbersMax": 4,
-    "attentionTrialsBetweenRecallsMin": 5,
-    "attentionTrialsBetweenRecallsMax": 8
+    "attentionTrialsBetweenNumbersMax": 4
 }
